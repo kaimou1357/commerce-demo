@@ -1,4 +1,5 @@
 import Grid from 'components/grid';
+import { StickySearch } from 'components/layout/navbar/search';
 import ProductGridItems from 'components/layout/product-grid-items';
 import { defaultSort, sorting } from 'lib/constants';
 import { getProducts } from 'lib/shopify';
@@ -35,6 +36,7 @@ export default async function SearchPage(props: {
           <ProductGridItems products={filteredProducts} />
         </Grid>
       ) : null}
+      <StickySearch/>
     </>
   );
 }
