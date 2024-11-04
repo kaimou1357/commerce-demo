@@ -49,7 +49,8 @@ export async function getFilteredProducts(products: Product[], searchQuery: stri
 
   insertPromptForUser(searchQuery!);
 
-  return products.filter(product => filteredProducts.some(filteredProductId => filteredProductId === product.id));
+  // return products.filter(product => filteredProducts.some(filteredProductId => filteredProductId === product.id));
+  return products;
 }
 
 async function getPreviousPromptsForUser(): Promise<ChatCompletionUserMessageParam[]>  {
