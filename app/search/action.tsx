@@ -9,6 +9,12 @@ const FilteredProductsSchema = z.object({
   filtered_products: z.array(z.string())
 });
 
+interface SimplifiedProduct {
+  id: string,
+  title: string,
+  description: string,
+}
+
 
 export async function getFilteredProducts(products: Product[], searchQuery: string | undefined): Promise<Product[]> {
   if (searchQuery === null) {
@@ -21,14 +27,14 @@ export async function getFilteredProducts(products: Product[], searchQuery: stri
     description: product.enhancedDescription?.value,
   }));
 
-  const previousPrompts = await getPreviousPromptsForUser();
+  const productPrompts = getPreviousProductsForUser(simplifiedProducts);
 
   const openai = new OpenAI({apiKey: process.env.OPENAI_API_KEY})
 
   const chatCompletion = await openai.beta.chat.completions.parse({
     messages: [      
-      {role: "user", content: `The users most recent query is: ${searchQuery}`},
-      {role: "system", content: `The input JSON is here: ${JSON.stringify(simplifiedProducts)}`},
+      {role: "user", content: `The query is: ${searchQuery}`},
+      {role: "system", content: `The input product list JSON is here: ${JSON.stringify(simplifiedProducts)}`},
       {role: "system", content: `
         You are an intelligent e-commerce sales agent specializing in understanding user intent and providing personalized shopping recommendations for clothing. Take into context the pre-existing user queries when making decisions to try to piece together their need.
         Your job is to carefully consider each user’s input, analyze their context (like formal vs casual events), and present only relevant results that match their specific needs.
@@ -37,7 +43,6 @@ export async function getFilteredProducts(products: Product[], searchQuery: stri
         Always prioritize context over individual keywords. For example, the word ‘wedding’ doesn’t always mean formal, and the phrase ‘get dirty’ indicates they may want practical or casual clothing. 
         Your task is to balance the user’s stated purpose with their environment and give recommendations that fit both. The goal is to make the shopping experience feel like a conversation with a highly experienced sales agent who can understand subtle cues, anticipate needs, and provide tailored product suggestions. 
         Return the result using the IDs from the JSON input.`},
-        ...previousPrompts
     ],
     model: "gpt-4o-mini",
     temperature: 0,
@@ -47,32 +52,30 @@ export async function getFilteredProducts(products: Product[], searchQuery: stri
   const results = FilteredProductsSchema.parse(chatCompletion.choices[0]?.message.parsed);
   const filteredProducts = results.filtered_products;
 
-  insertPromptForUser(searchQuery!);
+  insertProductsForUser(filteredProducts);
 
-  // return products.filter(product => filteredProducts.some(filteredProductId => filteredProductId === product.id));
-  return products;
+  return products.filter(product => filteredProducts.some(filteredProductId => filteredProductId === product.id));
 }
 
-async function getPreviousPromptsForUser(): Promise<ChatCompletionUserMessageParam[]>  {
+async function getPreviousProductsForUser(products: SimplifiedProduct[]): Promise<ChatCompletionUserMessageParam[]>  {
   const supabase = await createClient();
   const {
     data: { user }
   } = await supabase.auth.getUser()
 
-  const { data , error} = await supabase.from('prompts').select().eq('user_id', user?.id)
-
-  if (error) {
+  const { data , error} = await supabase.from('filtered_products').select().eq('owner_id', user?.id).limit(1)
+  if (error || data === null) {
     return [];
   }
 
   return data.map(prompt => ({role: "user", content: prompt.prompt}));
 }
 
-async function insertPromptForUser(prompt: string) {
+async function insertProductsForUser(productIds: string[]) {
   const supabase = await createClient();
   const {
     data: { user }
   } = await supabase.auth.getUser()
 
-  await supabase.from('prompts').insert({user_id: user?.id, prompt: prompt});
+  await supabase.from('filtered_products').upsert({owner_id: user?.id, products: productIds}, {onConflict: 'owner_id'});
 }
