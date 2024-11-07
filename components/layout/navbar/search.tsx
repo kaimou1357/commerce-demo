@@ -59,7 +59,7 @@ export function StickySearch() {
             <p className='italic text-xs'>Powered by Lighthouse</p>
             <SunIcon className="size-6"/>
           </div>
-          <button type="submit" className="text-xs underline">Reset Filters</button>  
+          <button type="submit" className="text-xs underline">See all products</button>  
         </div>
     </Form>
   );

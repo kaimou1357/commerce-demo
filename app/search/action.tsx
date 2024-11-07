@@ -22,7 +22,6 @@ export async function getFilteredProducts(products: Product[], searchQuery: stri
     clearFiltersForUser();
     return products;
   }
-  console.log(JSON.stringify(products, null, 4));
   
   const simplifiedProducts = products.map(product => ({
     id: product.id,
@@ -94,5 +93,5 @@ async function clearFiltersForUser() {
     data: { user }
   } = await supabase.auth.getUser()
 
-  const { data, error } = await supabase.from('filtered_products').update({products: []}).eq('owner_id', user?.id)
+  await supabase.from('filtered_products').update({products: []}).eq('owner_id', user?.id)
 }

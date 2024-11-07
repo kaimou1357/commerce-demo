@@ -1,3 +1,4 @@
+import { SparklesIcon } from '@heroicons/react/24/outline';
 import { SortFilterItem } from 'lib/constants';
 import { Suspense } from 'react';
 import FilterItemDropdown from './dropdown';
@@ -20,11 +21,14 @@ export default function FilterList({ list, title }: { list: ListItem[]; title?: 
   return (
     <>
       <nav>
-        {title ? (
-          <h3 className="hidden text-xs text-neutral-500 md:block dark:text-neutral-400">
+        <div className="flex gap-2">
+          <SparklesIcon className="size-4"/>
+          {title ? (
+          <h3 className="text-xs mb-2 text-neutral-500 md:block dark:text-neutral-400">
             {title}
           </h3>
         ) : null}
+        </div>
         <ul className="hidden md:block">
           <Suspense fallback={null}>
             <FilterItemList list={list} />

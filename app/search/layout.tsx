@@ -15,7 +15,7 @@ export default function SearchLayout({ children }: { children: React.ReactNode }
           <ChildrenWrapper>{children}</ChildrenWrapper>
         </div>
         <div className="order-none flex-col md:order-last md:w-1/3">
-          <FilterList list={sorting} title="Filtering List - Demo Unit Here" />
+          <FilterList list={sorting} title="Recommended Filters" />
           <StickySearch/>
         </div>
       </div>
