@@ -46,7 +46,7 @@ export function StickySearch() {
             placeholder="Continue filtering products..."
             autoComplete="off"
             defaultValue={''}
-            className="md:h-14 px-10 md:text-md text-xs w-full border-4 rounded-lg bg-white px-4 py-2 text-black placeholder:text-neutral-500 md:text-sm dark:border-neutral-800 dark:bg-gray-800 dark:text-white dark:placeholder:text-neutral-400 bg-clip-border shadow-[0_0_3px_3px_rgba(67,56,202,0.5)]"
+            className="md:h-14 px-10 md:text-md text-xs w-full border-4 rounded-lg bg-white py-2 text-black placeholder:text-neutral-500 md:text-sm dark:border-neutral-800 dark:bg-gray-800 dark:text-white dark:placeholder:text-neutral-400 bg-clip-border shadow-[0_0_3px_3px_rgba(67,56,202,0.5)]"
           />
           <div className="absolute inset-y-0 right-0 pr-3 flex items-center ">
             <button type="submit">
