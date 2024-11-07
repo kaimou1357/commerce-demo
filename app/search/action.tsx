@@ -1,7 +1,8 @@
+"use server"
 import { Product } from "lib/shopify/types";
 import OpenAI from "openai";
 import { zodResponseFormat } from 'openai/helpers/zod';
-import { ChatCompletionUserMessageParam } from "openai/resources/chat/completions";
+import { ChatCompletionSystemMessageParam } from "openai/resources/chat/completions";
 import { createClient } from "utils/supabase/server";
 import { z } from 'zod';
 
@@ -17,9 +18,11 @@ interface SimplifiedProduct {
 
 
 export async function getFilteredProducts(products: Product[], searchQuery: string | undefined): Promise<Product[]> {
-  if (searchQuery === null) {
+  if (searchQuery === null || searchQuery === '') {
+    clearFiltersForUser();
     return products;
   }
+  console.log(JSON.stringify(products, null, 4));
   
   const simplifiedProducts = products.map(product => ({
     id: product.id,
@@ -27,7 +30,7 @@ export async function getFilteredProducts(products: Product[], searchQuery: stri
     description: product.enhancedDescription?.value,
   }));
 
-  const productPrompts = getPreviousProductsForUser(simplifiedProducts);
+  const productPrompts = await getPreviousProductsForUser(simplifiedProducts);
 
   const openai = new OpenAI({apiKey: process.env.OPENAI_API_KEY})
 
@@ -43,6 +46,7 @@ export async function getFilteredProducts(products: Product[], searchQuery: stri
         Always prioritize context over individual keywords. For example, the word ‘wedding’ doesn’t always mean formal, and the phrase ‘get dirty’ indicates they may want practical or casual clothing. 
         Your task is to balance the user’s stated purpose with their environment and give recommendations that fit both. The goal is to make the shopping experience feel like a conversation with a highly experienced sales agent who can understand subtle cues, anticipate needs, and provide tailored product suggestions. 
         Return the result using the IDs from the JSON input.`},
+        ...productPrompts
     ],
     model: "gpt-4o-mini",
     temperature: 0,
@@ -57,18 +61,22 @@ export async function getFilteredProducts(products: Product[], searchQuery: stri
   return products.filter(product => filteredProducts.some(filteredProductId => filteredProductId === product.id));
 }
 
-async function getPreviousProductsForUser(products: SimplifiedProduct[]): Promise<ChatCompletionUserMessageParam[]>  {
+async function getPreviousProductsForUser(products: SimplifiedProduct[]): Promise<ChatCompletionSystemMessageParam[]>  {
   const supabase = await createClient();
   const {
     data: { user }
   } = await supabase.auth.getUser()
 
   const { data , error} = await supabase.from('filtered_products').select().eq('owner_id', user?.id).limit(1)
-  if (error || data === null) {
+  if (error || data === null || data.length === 0) {
     return [];
   }
 
-  return data.map(prompt => ({role: "user", content: prompt.prompt}));
+  const record = data[0];
+  const previousFilteredProducts = record.products;
+  const newProductSet = new Set(previousFilteredProducts.map(((item: any) => item)));
+  const filteredProductSet = products.filter(item => newProductSet.has(item.id));
+  return filteredProductSet.map(product => ({role: 'system', content: JSON.stringify(product)}));
 }
 
 async function insertProductsForUser(productIds: string[]) {
@@ -78,4 +86,13 @@ async function insertProductsForUser(productIds: string[]) {
   } = await supabase.auth.getUser()
 
   await supabase.from('filtered_products').upsert({owner_id: user?.id, products: productIds}, {onConflict: 'owner_id'});
+}
+
+async function clearFiltersForUser() {
+  const supabase = await createClient();
+  const {
+    data: { user }
+  } = await supabase.auth.getUser()
+
+  const { data, error } = await supabase.from('filtered_products').update({products: []}).eq('owner_id', user?.id)
 }
