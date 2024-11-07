@@ -15,16 +15,17 @@ export default function NavbarSearch() {
   return (
     <Form action="/search" className={`relative w-full max-w-[550px] lg:w-80 xl:w-full 
       ${isSearchPage ? 'hidden' : ''}`}>
-    <input
-      key={searchParams?.get('q')}
-      type="text"
-      name="q"
-      placeholder="Search for products..."
-      autoComplete="off"
-      defaultValue={searchParams?.get('q') || ''}
-      className="px-6 text-md w-full border-4 rounded-lg bg-white px-4 py-2 text-black placeholder:text-neutral-500 md:text-sm dark:border-neutral-800 dark:bg-transparent dark:text-white dark:placeholder:text-neutral-400 bg-clip-border
-    shadow-[0_0_3px_3px_rgba(67,56,202,0.5)]"
-    />
+      <input
+        key={searchParams?.get('q')}
+        type="text"
+        name="q"
+        placeholder="Search for products..."
+        autoComplete="off"
+        defaultValue={searchParams?.get('q') || ''}
+        className="px-6 text-md w-full border-4 rounded-lg bg-white px-4 py-2 text-black placeholder:text-neutral-500 md:text-sm dark:border-neutral-800 dark:bg-transparent dark:text-white dark:placeholder:text-neutral-400 bg-clip-border
+      shadow-[0_0_3px_3px_rgba(67,56,202,0.5)]"
+      />
+      <input type="hidden" name="reset" value="true"></input>
     <div className="absolute left-2 top-0 mr-3 flex h-full items-center">
       <MagnifyingGlassIcon className="h-4" />
     </div>

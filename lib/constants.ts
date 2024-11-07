@@ -6,9 +6,9 @@ export type SortFilterItem = {
 };
 
 export const defaultSort: SortFilterItem = {
-  title: 'Trending',
-  slug: 'trending-desc',
-  sortKey: 'BEST_SELLING',
+  title: 'Relevance',
+  slug: null,
+  sortKey: 'RELEVANCE',
   reverse: false
 };
 

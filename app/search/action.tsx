@@ -7,7 +7,8 @@ import { createClient } from "utils/supabase/server";
 import { z } from 'zod';
 
 const FilteredProductsSchema = z.object({
-  filtered_products: z.array(z.string())
+  filtered_products: z.array(z.string()),
+  reasoning: z.string()
 });
 
 interface SimplifiedProduct {
@@ -17,10 +18,14 @@ interface SimplifiedProduct {
 }
 
 
-export async function getFilteredProducts(products: Product[], searchQuery: string | undefined): Promise<Product[]> {
+export async function getFilteredProducts(products: Product[], searchQuery: string | undefined, reset: boolean): Promise<Product[]> {
   if (searchQuery === null || searchQuery === '') {
     clearFiltersForUser();
     return products;
+  }
+
+  if (reset) {
+    clearFiltersForUser();
   }
   
   const simplifiedProducts = products.map(product => ({
@@ -29,14 +34,18 @@ export async function getFilteredProducts(products: Product[], searchQuery: stri
     description: product.enhancedDescription?.value,
   }));
 
-  const productPrompts = await getPreviousProductsForUser(simplifiedProducts);
+  var productPrompts = await getPreviousProductsForUser(simplifiedProducts)
+
+  if (productPrompts.length === 0) {
+    productPrompts = [{role: "system", content: JSON.stringify(products)}]
+  }
 
   const openai = new OpenAI({apiKey: process.env.OPENAI_API_KEY})
 
   const chatCompletion = await openai.beta.chat.completions.parse({
     messages: [      
+      ...productPrompts,
       {role: "user", content: `The query is: ${searchQuery}`},
-      {role: "system", content: `The input product list JSON is here: ${JSON.stringify(simplifiedProducts)}`},
       {role: "system", content: `
         You are an intelligent e-commerce sales agent specializing in understanding user intent and providing personalized shopping recommendations for clothing. Take into context the pre-existing user queries when making decisions to try to piece together their need.
         Your job is to carefully consider each user’s input, analyze their context (like formal vs casual events), and present only relevant results that match their specific needs.
@@ -45,7 +54,10 @@ export async function getFilteredProducts(products: Product[], searchQuery: stri
         Always prioritize context over individual keywords. For example, the word ‘wedding’ doesn’t always mean formal, and the phrase ‘get dirty’ indicates they may want practical or casual clothing. 
         Your task is to balance the user’s stated purpose with their environment and give recommendations that fit both. The goal is to make the shopping experience feel like a conversation with a highly experienced sales agent who can understand subtle cues, anticipate needs, and provide tailored product suggestions. 
         Return the result using the IDs from the JSON input.`},
-        ...productPrompts
+      {role: "system", content: "Query: Short Sleeve. Response: T shirts and blouses."},
+      {role: "system", content: "Query: Men. Response: Heavyweight overshirt, taper jean, classic cardigan."},
+      {role: "system", content: "Please also include the reasoning of how you obtained the results in the reasoning field in the output"},
+      
     ],
     model: "gpt-4o-mini",
     temperature: 0,
