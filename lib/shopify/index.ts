@@ -415,7 +415,7 @@ export async function getProducts({
     variables: {
       query,
       reverse,
-      sortKey
+      // sortKey
     }
   });
 

@@ -8,13 +8,14 @@ import { z } from 'zod';
 
 const FilteredProductsSchema = z.object({
   filtered_products: z.array(z.string()),
-  reasoning: z.string()
+  reasoning: z.string(),
 });
 
 interface SimplifiedProduct {
   id: string,
   title: string,
   description: string,
+  price: string,
 }
 
 
@@ -27,14 +28,16 @@ export async function getFilteredProducts(products: Product[], searchQuery: stri
   if (reset) {
     clearFiltersForUser();
   }
-  
+
   const simplifiedProducts = products.map(product => ({
     id: product.id,
-    title: product.title,
+    title: product.handle,
     description: product.enhancedDescription?.value,
+    price: product.priceRange.maxVariantPrice.amount,
   }));
 
   var productPrompt = await getPreviousProductsForUser(simplifiedProducts)
+
 
   const openai = new OpenAI({apiKey: process.env.OPENAI_API_KEY})
 
@@ -50,20 +53,23 @@ export async function getFilteredProducts(products: Product[], searchQuery: stri
         Always prioritize context over individual keywords. For example, the word ‘wedding’ doesn’t always mean formal, and the phrase ‘get dirty’ indicates they may want practical or casual clothing. 
         Your task is to balance the user’s stated purpose with their environment and give recommendations that fit both. The goal is to make the shopping experience feel like a conversation with a highly experienced sales agent who can understand subtle cues, anticipate needs, and provide tailored product suggestions. `},
       {role: "system", content: "Please also include the reasoning of how you obtained the results in the reasoning field in the output"},
-      {role: "system", content: "In the output - return only the title field of the products"},
+      {role: "system", content: "When user filters on price, please just read the price column to determine the price to filter. Verify the price on each product - even if the names are similar. DO NOT INCLUDE ANYTHING ABOVE BUDGET"},
+      {role: "system", content: "In the output - return only the title field of the products that adhere to the user criteria."},
+      {role: "system", content: "please ensure that the filtered products list only contains the products after you applied your filters"}
       
     ],
-    model: "ft:gpt-4o-mini-2024-07-18:lighthouse::ARCy9vDt",
+    model: "gpt-4o",
     temperature: 0,
     response_format: zodResponseFormat(FilteredProductsSchema, "product_list") 
   });
 
   const results = FilteredProductsSchema.parse(chatCompletion.choices[0]?.message.parsed);
   const filteredProducts = results.filtered_products;
+  console.log(results);
 
   insertProductsForUser(filteredProducts);
 
-  return products.filter(product => filteredProducts.some(productName => productName === product.title));
+  return products.filter(product => filteredProducts.some(productName => productName === product.handle));
 }
 
 async function getPreviousProductsForUser(products: SimplifiedProduct[]): Promise<ChatCompletionSystemMessageParam>  {
@@ -84,7 +90,7 @@ async function getPreviousProductsForUser(products: SimplifiedProduct[]): Promis
   }
 
   const result = products.filter(product => previousFilteredProducts.some((productName: string) => productName === product.title));
-  return {role: 'system', content: JSON.stringify(result)};
+  return {role: 'system', content: `The starting product list you will be filtering from: ${JSON.stringify(result)}`};
 }
 
 async function insertProductsForUser(productIds: string[]) {
