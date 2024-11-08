@@ -19,7 +19,7 @@ interface SimplifiedProduct {
 
 
 export async function getFilteredProducts(products: Product[], searchQuery: string | undefined, reset: boolean): Promise<Product[]> {
-  if (searchQuery === null || searchQuery === '') {
+  if (searchQuery === null || searchQuery === '' || searchQuery === undefined) {
     clearPromptsForUser();
     return products;
   }
@@ -52,6 +52,7 @@ export async function getFilteredProducts(products: Product[], searchQuery: stri
         Always prioritize context over individual keywords. For example, the word ‘wedding’ doesn’t always mean formal, and the phrase ‘get dirty’ indicates they may want practical or casual clothing. 
         Your task is to balance the user’s stated purpose with their environment and give recommendations that fit both. The goal is to make the shopping experience feel like a conversation with a highly experienced sales agent who can understand subtle cues, anticipate needs, and provide tailored product suggestions. `},
       {role: "system", content: "Provide the filtered results in the filtered products field. Only include the handle of the product."},
+      {role: "system", content: "When filtering by price - make sure that the price is actually under what the user determines"},
       {role: "system", content: "Using the user's previous prompts, use them as context when filtering. For example, if user already is searching for mens clothes, do not show women's clothing even if they search for something unisex like jackets"},
     ],
     model: "gpt-4o",
@@ -86,7 +87,8 @@ async function insertPromptForUser(prompt: string | undefined) {
   
   const updatedPrompts = promptData?.prompts ? [...promptData.prompts, prompt] : [prompt]
 
-  await supabase.from('prompts').upsert({user_id: user?.id, prompts: updatedPrompts}, {onConflict: 'user_id'});
+  const { error } = await supabase.from('prompts').upsert({user_id: user?.id, prompts: updatedPrompts}, {onConflict: 'user_id'});
+  console.log(error);
 }
 
 async function existingUserPrompts(): Promise<ChatCompletionUserMessageParam[]> {
@@ -96,7 +98,7 @@ async function existingUserPrompts(): Promise<ChatCompletionUserMessageParam[]> 
   } = await supabase.auth.getUser()
 
   const {data, error}  = await supabase.from('prompts').select('prompts').eq('user_id', user?.id);
-
+  console.log(error);
   if (data === null || data.length === 0) {
     return []
   }
@@ -112,5 +114,6 @@ async function clearPromptsForUser() {
     data: { user }
   } = await supabase.auth.getUser()
 
-  await supabase.from('prompts').update({prompts: []}).eq('user_id', user?.id)
+  const { error } =  await supabase.from('prompts').update({prompts: []}).eq('user_id', user?.id)
+  console.log(error);
 }
