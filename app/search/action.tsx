@@ -81,6 +81,9 @@ async function getProductsPrompt(products: SimplifiedProduct[]): Promise<ChatCom
 }
 
 async function insertPromptForUser(prompt: string | undefined) {
+  if (prompt === undefined || prompt === null) {
+    return;
+  }
   const supabase = await createClient();
   const {
     data: { user }
