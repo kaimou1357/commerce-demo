@@ -14,7 +14,7 @@ const FilteredProductsSchema = z.object({
 interface SimplifiedProduct {
   title: string,
   description: string,
-  price: string,
+  price: number,
 }
 
 
@@ -31,7 +31,7 @@ export async function getFilteredProducts(products: Product[], searchQuery: stri
   const simplifiedProducts = products.map(product => ({
     title: product.handle,
     description: product.enhancedDescription?.value,
-    price: product.priceRange.maxVariantPrice.amount,
+    price: parseInt(product.priceRange.maxVariantPrice.amount),
   }));
 
   var productPrompt = await getProductsPrompt(simplifiedProducts)
@@ -56,12 +56,13 @@ export async function getFilteredProducts(products: Product[], searchQuery: stri
         An initial query of "fall" would filter for fall-appropriate items.
         A follow-up query of "men" would further refine to show fall items specifically for men.
         If a later query such as "comfortable" is introduced, interpret it based on existing filters, assuming relevance to prior context.
-        The output should be structured data, listing each product in the final filtered results with explanations of how each filter was applied.
         `},
-      {role: "system", content: "Provide the filtered results in the filtered products field. Only include the handle of the product."},
-      {role: "system", content: "When filtering by price - make sure that the price is actually under what the user determines"},
+      {role: "system", content: "Provide only the filtered results that match the filter described in the filtered products field. Only include the handle of the product."},
+      {role: "system", content: "When filtering by price - if the prompt is to check price between 50 to 75, you should check the price of the product and then check if it's greater than 50 and less than 75."},
       {role: "system", content: "Using the user's previous prompts, use them as context when filtering. For example, if user already is searching for mens clothes, do not show women's clothing even if they search for something unisex like jackets"},
+      {role: "system", content: "Please provide the price of the product in the reasoning why you picked each product. Run this check before you add the product to the filter."}
     ],
+
     model: "gpt-4o",
     temperature: 0,
     response_format: zodResponseFormat(FilteredProductsSchema, "product_list") 
@@ -98,7 +99,6 @@ async function insertPromptForUser(prompt: string | undefined) {
   const updatedPrompts = promptData?.prompts ? [...promptData.prompts, prompt] : [prompt]
 
   const { error } = await supabase.from('prompts').upsert({user_id: user?.id, prompts: updatedPrompts}, {onConflict: 'user_id'});
-  console.log(error);
 }
 
 async function existingUserPrompts(): Promise<ChatCompletionUserMessageParam[]> {
@@ -125,5 +125,4 @@ async function clearPromptsForUser() {
   } = await supabase.auth.getUser()
 
   const { error } =  await supabase.from('prompts').update({prompts: []}).eq('user_id', user?.id)
-  console.log(error);
 }
