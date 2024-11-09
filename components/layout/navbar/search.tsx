@@ -19,7 +19,7 @@ export default function NavbarSearch() {
         key={searchParams?.get('q')}
         type="text"
         name="q"
-        placeholder="Search for products..."
+        placeholder="Search just like you’d say it…"
         autoComplete="off"
         defaultValue={searchParams?.get('q') || ''}
         className="px-6 text-md w-full border-4 rounded-lg bg-white px-4 py-2 text-black placeholder:text-neutral-500 md:text-sm dark:border-neutral-800 dark:bg-transparent dark:text-white dark:placeholder:text-neutral-400 bg-clip-border
@@ -44,7 +44,7 @@ export function StickySearch() {
           <input
             key={searchParams?.get('q')}
             name="q"
-            placeholder="Continue filtering products..."
+            placeholder="Add more details if you'd like..."
             autoComplete="off"
             defaultValue={''}
             className="md:h-14 px-10 md:text-md text-xs w-full border-4 rounded-lg bg-white py-2 text-black placeholder:text-neutral-500 md:text-sm dark:border-neutral-800 dark:bg-gray-800 dark:text-white dark:placeholder:text-neutral-400 bg-clip-border shadow-[0_0_3px_3px_rgba(67,56,202,0.5)]"
@@ -60,7 +60,7 @@ export function StickySearch() {
             <p className='italic text-xs'>Powered by Lighthouse</p>
             <SunIcon className="size-6"/>
           </div>
-          <button type="submit" className="text-xs underline">See all products</button>  
+          <button type="submit" className="text-xs underline">Clear</button>  
         </div>
     </Form>
   );

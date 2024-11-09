@@ -58,7 +58,7 @@ export async function getFilteredProducts(products: Product[], searchQuery: stri
         If a later query such as "comfortable" is introduced, interpret it based on existing filters, assuming relevance to prior context.
         `},
       {role: "system", content: "Provide only the filtered results that match the filter described in the filtered products field. Only include the handle of the product."},
-      {role: "system", content: "When filtering by price - please think through it step-by-step."},
+      {role: "system", content: "When filtering by price - please think through it step-by-step. When filtering between prices, please think through it step-by-step. At the end - verify the products against the filtered price request."},
       {role: "system", content: "Using the user's previous prompts, use them as context when filtering. For example, if user already is searching for mens clothes, do not show women's clothing even if they search for something unisex like jackets"},
       {role: "system", content: "Please provide the price of the product in the reasoning why you picked each product. Run this check before you add the product to the filter."}
     ],
