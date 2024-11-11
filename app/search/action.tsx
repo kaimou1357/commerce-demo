@@ -21,11 +21,13 @@ export interface SimplifiedProduct {
 export async function getFilteredProducts(products: Product[], searchQuery: string | undefined, reset: boolean): Promise<Product[]> {
   if (searchQuery === null || searchQuery === '' || searchQuery === undefined) {
     clearPromptsForUser();
+    clearSeenProducts();
     return products;
   }
 
   if (reset) {
     clearPromptsForUser();
+    clearSeenProducts();
   }
 
   const simplifiedProducts = products.map(product => ({
@@ -70,7 +72,9 @@ export async function getFilteredProducts(products: Product[], searchQuery: stri
 
   const toolCall = completion.choices[0]?.message.tool_calls?.[0];
   if (toolCall) {
-    const filteredProducts = getFunctionCallResult(toolCall, simplifiedProducts);
+    const seenProducts = await querySeenProducts();
+    const filteredFromSeenProduct = simplifiedProducts.filter(product => seenProducts.some(productName => productName === product.title));
+    const filteredProducts = getFunctionCallResult(toolCall, filteredFromSeenProduct);
     return products.filter(product => filteredProducts.some(productName => productName.title === product.handle));
   }
 
@@ -78,13 +82,27 @@ export async function getFilteredProducts(products: Product[], searchQuery: stri
   
   const { filtered_products: filteredProducts } = results;
   await insertPromptForUser(searchQuery);
-  // await insertFilteredProducts();
+  await insertFilteredProducts(filteredProducts);
 
   return products.filter(product => filteredProducts.some(productName => productName === product.handle));
 }
 
 async function getProductsPrompt(products: SimplifiedProduct[]): Promise<ChatCompletionSystemMessageParam>  {
   return {role: 'system', content: `All Products in the store: ${JSON.stringify(products)}`};
+}
+
+async function querySeenProducts(): Promise<string[]> {
+  const supabase = await createClient();
+  const {
+    data: { user }
+  } = await supabase.auth.getUser()
+
+  const { data, error} = await supabase.from('filtered_products').select('products').eq('user_id', user?.id);
+  if (data === null || data.length === 0) {
+    return []
+  }
+
+  return data[0]?.products;
 }
 
 async function insertFilteredProducts(products: string[]) {
@@ -124,7 +142,6 @@ async function existingUserPrompts(): Promise<ChatCompletionUserMessageParam[]> 
   } = await supabase.auth.getUser()
 
   const {data, error}  = await supabase.from('prompts').select('prompts').eq('user_id', user?.id);
-  console.log(error);
   if (data === null || data.length === 0) {
     return []
   }
@@ -141,5 +158,14 @@ async function clearPromptsForUser() {
   } = await supabase.auth.getUser()
 
   const { error } =  await supabase.from('prompts').update({prompts: []}).eq('user_id', user?.id)
+}
+
+async function clearSeenProducts() {
+  const supabase = await createClient();
+  const {
+    data: { user }
+  } = await supabase.auth.getUser()
+
+  const { error } =  await supabase.from('filtered_products').update({products: []}).eq('user_id', user?.id)
 }
 
