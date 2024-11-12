@@ -38,6 +38,8 @@ export async function getFilteredProducts(products: Product[], searchQuery: stri
 
   var productPrompt = await getProductsPrompt(simplifiedProducts)
   const prompts = await existingUserPrompts();
+  const seenProducts = await querySeenProducts();
+  const seenPrompt = await seenSimplifiedProductContext(seenProducts, simplifiedProducts);
 
   const openai = new OpenAI({apiKey: process.env.OPENAI_API_KEY})
 
@@ -45,6 +47,7 @@ export async function getFilteredProducts(products: Product[], searchQuery: stri
     messages: [      
       productPrompt,
       ...prompts,
+      seenPrompt,
       {role: "user", content: `The new search query is: ${searchQuery}`},
       {role: "system", content: "When filtering by price just pick a function to call. Do not do any more processing - if user asks for products between x and y, use filter_products_price_between. Use filter_products_price_greater_than if user requests prices above x and filter_products_price_less_than for prices below y"},
       {role: "system", content: `
@@ -52,7 +55,7 @@ export async function getFilteredProducts(products: Product[], searchQuery: stri
 
         Users will provide sequential queries, which you should use cumulatively to filter the product list. Apply filtering logic based on common descriptors such as price, season, gender, and other relevant terms. When certain product details are unclear, infer them based on the product title, using your best judgment. If no products match the combined criteria even remotely, return nothing.
 
-        The output should be a structured list of the products that match the cumulative filters, with each product displayed by its title, description, and price. Additionally, include reasoning on how the final product list was determined.
+        The output should be a structured list of the products that match the cumulative filters, with each product displayed by its title, description, and price.
 
         Examples of cumulative filtering:
 
@@ -62,8 +65,12 @@ export async function getFilteredProducts(products: Product[], searchQuery: stri
         `},
       {role: "system", content: "Provide only the filtered results that match the filter described in the filtered products field. Only include the handle of the product."},
       {role: "system", content: "Using the user's previous prompts, use them as context when filtering. For example, if user already is searching for mens clothes, do not show women's clothing even if they search for something unisex like jackets"},
+      {role: "system", content: `If the user already has a set of seen products, try to determine whether we should filter on the set of seen products or the entire set of products.
+          For example, if the user already is looking at shoes and then wants a pair of shorts, if it's completely unrelated, please filter against the entire product set.
+          If the user query is related to the already seen set of products, only filter on the seen set of products.
+        `},
+        {role: "system", content: "Provide only the filtered results that match the filter described in the filtered products field. Only include the handle of the product."},
     ],
-
     model: "gpt-4o",
     temperature: 0,
     tools: openAiTools,
@@ -72,14 +79,12 @@ export async function getFilteredProducts(products: Product[], searchQuery: stri
 
   const toolCall = completion.choices[0]?.message.tool_calls?.[0];
   if (toolCall) {
-    const seenProducts = await querySeenProducts();
     const filteredFromSeenProduct = simplifiedProducts.filter(product => seenProducts.some(productName => productName === product.title));
     const filteredProducts = getFunctionCallResult(toolCall, filteredFromSeenProduct);
     return products.filter(product => filteredProducts.some(productName => productName.title === product.handle));
   }
 
   const results = FilteredProductsSchema.parse(completion.choices[0]?.message.parsed);
-  
   const { filtered_products: filteredProducts } = results;
   await insertPromptForUser(searchQuery);
   await insertFilteredProducts(filteredProducts);
@@ -103,6 +108,14 @@ async function querySeenProducts(): Promise<string[]> {
   }
 
   return data[0]?.products;
+}
+
+function seenSimplifiedProductContext(products: string[], allProducts: SimplifiedProduct[]): ChatCompletionSystemMessageParam {
+  if (products.length === 0) {
+    return {role: "system", content: `Seen Products: ${JSON.stringify(allProducts)}`};
+  }
+  const filtered = allProducts.filter(product => products.some(productName => productName === product.title))
+  return {role: "system", content: `Seen Products: ${JSON.stringify(filtered)}`};
 }
 
 async function insertFilteredProducts(products: string[]) {
